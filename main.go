@@ -16,11 +16,12 @@ import (
 	"sync"
 )
 
-const snooze time.Duration = 600
+const snooze time.Duration = 1000
 
 var (
 	dest       string
 	ext        string
+	path       string
 	header     string
 	collection string
 	sepr       string
@@ -131,7 +132,37 @@ func tracker(start time.Time, name string) {
 	}
 }
 
-func race() string {
+func Race(_path string, _ext string) string {
+	path = _path
+	ext = _ext
+	defer tracker(time.Now(), "Execution")
+	if runtime.GOOS == "windows" {
+		sepr = "\\"
+	} else {
+		sepr = "/"
+	}
+	sprint()
+	return ""
+}
+
+func Trackrace(_path string, _ext string, _dest string) string {
+	path = _path
+	ext = _ext
+	dest = _dest
+	if strings.Contains(dest, ".") {
+		fileList = true
+		if _, er := os.Stat(dest); !os.IsNotExist(er) {
+			os.Remove(dest)
+		}
+	} else {
+		cpy = true
+		if _, err := os.Stat(dest); os.IsNotExist(err) {
+			os.Mkdir(dest, 0775)
+		}
+		if _, err := os.Stat(dest + ".zip"); !os.IsNotExist(err) {
+			os.Remove(dest + ".zip")
+		}
+	}
 	defer tracker(time.Now(), "Execution")
 	if runtime.GOOS == "windows" {
 		sepr = "\\"
@@ -143,20 +174,6 @@ func race() string {
 }
 
 func sprint() {
-	if len(os.Args) == 4 {
-		dest = os.Args[3]
-		if strings.Contains(os.Args[3], ".") {
-			fileList = true
-			if _, er := os.Stat(dest); !os.IsNotExist(er) {
-				os.Remove(dest)
-			}
-		} else {
-			cpy = true
-			if _, err := os.Stat(dest); os.IsNotExist(err) {
-				os.Mkdir(dest, 0775)
-			}
-		}
-	}
 	/*	Logic to Search for Directories instead of files
 		if strings.HasPrefix(os.Args[2], "d.") {
 			ext = strings.Replace(os.Args[2], "d.", "", -1)
@@ -165,8 +182,6 @@ func sprint() {
 			// logic
 		}
 	*/
-	path := os.Args[1]
-	ext = os.Args[2]
 	wg := sync.WaitGroup{}
 	f := filescanner.Scanner{}
 	if strings.Contains(ext, ",") {
@@ -186,16 +201,14 @@ func sprint() {
 					if fileList {
 						collection += "Path: " + cPath + "\n"
 					}
-					if foundFile.Path != dest {
-						sp := catchParent(foundFile.Path)
-						if cpy {
-							if _, err := os.Stat(sp); os.IsNotExist(err) {
-								os.Mkdir(dest+sepr+sp, 0775)
-								go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
-							}
-							if _, err := os.Stat(sp); !os.IsNotExist(err) {
-								go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
-							}
+					sp := catchParent(foundFile.Path)
+					if cpy {
+						if _, err := os.Stat(sp); os.IsNotExist(err) {
+							os.Mkdir(dest+sepr+sp, 0775)
+							go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
+						}
+						if _, err := os.Stat(sp); !os.IsNotExist(err) {
+							go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
 						}
 					}
 				}
@@ -206,9 +219,9 @@ func sprint() {
 				for {
 					errorOccured := <-errStream
 					if fileList {
-						errors += fmt.Sprintf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error()) + "\n"
+						errors += fmt.Sprintf("Processing error at %s: \n	%s", errorOccured.Path, errorOccured.Err.Error()) + "\n"
 					}
-					log.Printf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error())
+					log.Printf("Processing error at %s: \n	%s", errorOccured.Path, errorOccured.Err.Error())
 				}
 			}()
 		}
@@ -246,9 +259,9 @@ func sprint() {
 		go func() {
 			for {
 				errorOccured := <-errStream
-				log.Printf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error())
+				log.Printf("Processing error at %s: \n%s", errorOccured.Path, errorOccured.Err.Error())
 				if fileList {
-					errors += fmt.Sprintf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error()) + "\n"
+					errors += fmt.Sprintf("Processing error at %s: \n	%s", errorOccured.Path, errorOccured.Err.Error()) + "\n"
 				}
 			}
 		}()
@@ -259,6 +272,8 @@ func sprint() {
 	if cpy {
 		sArch(dest, dest+".zip")
 		os.RemoveAll(dest)
+		fmt.Println("==================================================================================================")
+		log.Println("Archived Successfully: " + dest + ".zip")
 	}
 }
 
@@ -273,7 +288,9 @@ func main() {
 		usage += " Example1 (FileList): getsetgo C:\\Users pdf,doc,xls filelist.log\n"
 		usage += " Example2  (Archive): getsetgo docx,png,mp3 files"
 		log.Println(usage)
-	} else {
-		race()
+	} else if len(os.Args) == 3 {
+		Race(os.Args[1], os.Args[2])
+	} else if len(os.Args) == 4 {
+		Trackrace(os.Args[1], os.Args[2], os.Args[3])
 	}
 }
