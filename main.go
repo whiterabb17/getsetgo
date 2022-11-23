@@ -16,18 +16,18 @@ import (
 	"sync"
 )
 
-const snooze time.Duration = 1000
+const snooze time.Duration = 600
 
 var (
-	dest       string
-	ext        string
-	path       string
-	header     string
-	collection string
-	sepr       string
-	errors     string = ""
-	cpy        bool   = false
-	fileList   bool   = false
+	dest           string
+	ext            string
+	header         string
+	tempFolderName string
+	collection     string
+	sepr           string
+	errors         string = ""
+	cpy            bool   = false
+	fileList       bool   = false
 )
 
 func sCopy(fPath string, fName string, dPath string, wg *sync.WaitGroup) {
@@ -132,37 +132,7 @@ func tracker(start time.Time, name string) {
 	}
 }
 
-func Race(_path string, _ext string) string {
-	path = _path
-	ext = _ext
-	defer tracker(time.Now(), "Execution")
-	if runtime.GOOS == "windows" {
-		sepr = "\\"
-	} else {
-		sepr = "/"
-	}
-	sprint()
-	return ""
-}
-
-func Trackrace(_path string, _ext string, _dest string) string {
-	path = _path
-	ext = _ext
-	dest = _dest
-	if strings.Contains(dest, ".") {
-		fileList = true
-		if _, er := os.Stat(dest); !os.IsNotExist(er) {
-			os.Remove(dest)
-		}
-	} else {
-		cpy = true
-		if _, err := os.Stat(dest); os.IsNotExist(err) {
-			os.Mkdir(dest, 0775)
-		}
-		if _, err := os.Stat(dest + ".zip"); !os.IsNotExist(err) {
-			os.Remove(dest + ".zip")
-		}
-	}
+func race() string {
 	defer tracker(time.Now(), "Execution")
 	if runtime.GOOS == "windows" {
 		sepr = "\\"
@@ -174,6 +144,26 @@ func Trackrace(_path string, _ext string, _dest string) string {
 }
 
 func sprint() {
+	if len(os.Args) == 4 {
+		dest = os.Args[3]
+		if strings.Contains(os.Args[3], ".") {
+			fileList = true
+			if _, er := os.Stat(dest); !os.IsNotExist(er) {
+				os.Remove(dest)
+			}
+		} else {
+			cpy = true
+			if strings.Contains(dest, ".zip") {
+				tempFolderName = strings.Replace(dest, ".zip", "", 1)
+			} else {
+				tempFolderName = dest
+				dest = dest + ".zip"
+			}
+			if _, err := os.Stat(tempFolderName); os.IsNotExist(err) {
+				os.Mkdir(tempFolderName, 0775)
+			}
+		}
+	}
 	/*	Logic to Search for Directories instead of files
 		if strings.HasPrefix(os.Args[2], "d.") {
 			ext = strings.Replace(os.Args[2], "d.", "", -1)
@@ -182,6 +172,8 @@ func sprint() {
 			// logic
 		}
 	*/
+	path := os.Args[1]
+	ext = os.Args[2]
 	wg := sync.WaitGroup{}
 	f := filescanner.Scanner{}
 	if strings.Contains(ext, ",") {
@@ -201,14 +193,16 @@ func sprint() {
 					if fileList {
 						collection += "Path: " + cPath + "\n"
 					}
-					sp := catchParent(foundFile.Path)
-					if cpy {
-						if _, err := os.Stat(sp); os.IsNotExist(err) {
-							os.Mkdir(dest+sepr+sp, 0775)
-							go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
-						}
-						if _, err := os.Stat(sp); !os.IsNotExist(err) {
-							go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
+					if foundFile.Path != dest {
+						sp := catchParent(foundFile.Path)
+						if cpy {
+							if _, err := os.Stat(sp); os.IsNotExist(err) {
+								os.Mkdir(dest+sepr+sp, 0775)
+								go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
+							}
+							if _, err := os.Stat(sp); !os.IsNotExist(err) {
+								go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
+							}
 						}
 					}
 				}
@@ -219,9 +213,9 @@ func sprint() {
 				for {
 					errorOccured := <-errStream
 					if fileList {
-						errors += fmt.Sprintf("Processing error at %s: \n	%s", errorOccured.Path, errorOccured.Err.Error()) + "\n"
+						errors += fmt.Sprintf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error()) + "\n"
 					}
-					log.Printf("Processing error at %s: \n	%s", errorOccured.Path, errorOccured.Err.Error())
+					log.Printf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error())
 				}
 			}()
 		}
@@ -259,9 +253,9 @@ func sprint() {
 		go func() {
 			for {
 				errorOccured := <-errStream
-				log.Printf("Processing error at %s: \n%s", errorOccured.Path, errorOccured.Err.Error())
+				log.Printf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error())
 				if fileList {
-					errors += fmt.Sprintf("Processing error at %s: \n	%s", errorOccured.Path, errorOccured.Err.Error()) + "\n"
+					errors += fmt.Sprintf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error()) + "\n"
 				}
 			}
 		}()
@@ -270,27 +264,16 @@ func sprint() {
 	wg.Wait()
 	time.Sleep(snooze)
 	if cpy {
-		sArch(dest, dest+".zip")
+		sArch(tempFolderName, dest)
 		os.RemoveAll(dest)
-		fmt.Println("==================================================================================================")
-		log.Println("Archived Successfully: " + dest + ".zip")
 	}
 }
 
 func main() {
 	if len(os.Args) == 1 {
-		var usage string
-		usage += "Usage* \n"
-		usage += " Required: `arg1` searchPath\n"
-		usage += "	   `arg2` extention (or extentions split using a comma `,`)\n"
-		usage += " Optional: `arg3` destination (either folder name (all found files copied to folder then zipped), or\n"
-		usage += "	          filename (all found filename saved to fileList)\n\n"
-		usage += " Example1 (FileList): getsetgo C:\\Users pdf,doc,xls filelist.log\n"
-		usage += " Example2  (Archive): getsetgo docx,png,mp3 files"
-		log.Println(usage)
-	} else if len(os.Args) == 3 {
-		Race(os.Args[1], os.Args[2])
-	} else if len(os.Args) == 4 {
-		Trackrace(os.Args[1], os.Args[2], os.Args[3])
+		fmt.Println("  __    ____ _____  __   ____ _____  __    ___  \n", "/ /`_ | |_   | |  ( (` | |_   | |  / /`_ / / \\ \n", "\\_\\_/ |_|__  |_|  _)_) |_|__  |_|  \\_\\_/ \\_\\_/ ")
+		fmt.Println("\n Required args: \n                    <path>  /home/username / C:\\\\  \n", "     <fileName/extention>  log \n", "\n  Optional arguments: \n             <file/folder>  outfile.txt / folderName\n\n", "eg. getsetgo C:\\\\ payslip payslips.txt")
+		os.Exit(0)
 	}
+	race()
 }
