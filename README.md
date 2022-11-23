@@ -1,5 +1,9 @@
+[![CodeFactor](https://www.codefactor.io/repository/github/whiterabb17/getsetgo/badge)](https://www.codefactor.io/repository/github/whiterabb17/getsetgo)
+
 # Filesearch utility
-sfs is short for "simple file search"  
+getsetgo [ As in. On your marks, get set, go! ]
+Extremely fast file searching utility with the ability to copy found files to an archive.
+Time to search 912GB of a 1TB drive: 4.34.778min
 
 ### Dependencies
 1. Golang installed
@@ -14,13 +18,7 @@ make install
 
 2. Use from any directory. Current directory will be used as ROOT of search
 ```
-sfs somefile
-```
-
-3. Output will be
-```
-/Users/username/somedir/somefile.txt
-/Users/username/somedir/somedir2/somefile.py
-/Users/username/somedir/somedir2/somefile
-...
+getsetgo <path> <filename/extention>                          | Print output of found files
+getsetgo <path> <filename/extention> output.txt               | Save output to a file
+getsetgo <path> <filename/extention> folder                   | Copies all found files to given folder then zips the folder exfil
 ```
