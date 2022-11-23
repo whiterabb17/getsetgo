@@ -19,6 +19,13 @@ import (
 const snooze time.Duration = 600
 
 var (
+	// Colors
+	Reset          = "\033[0m"
+	Red            = "\033[31m"
+	Green          = "\033[32m"
+	Yellow         = "\033[33m"
+	Blue           = "\033[34m"
+	Purple         = "\033[35m"
 	dest           string
 	ext            string
 	header         string
@@ -271,8 +278,8 @@ func sprint() {
 
 func main() {
 	if len(os.Args) == 1 {
-		fmt.Println("  __    ____ _____  __   ____ _____  __    ___  \n", "/ /`_ | |_   | |  ( (` | |_   | |  / /`_ / / \\ \n", "\\_\\_/ |_|__  |_|  _)_) |_|__  |_|  \\_\\_/ \\_\\_/ ")
-		fmt.Println("\n Required args: \n                    <path>  /home/username / C:\\\\  \n", "     <fileName/extention>  log \n", "\n  Optional arguments: \n             <file/folder>  outfile.txt / folderName\n\n", "eg. getsetgo C:\\\\ payslip payslips.txt")
+		fmt.Println(Red, "  __    ____ _____ ", Yellow, "__   ____ _____ ", Green, "__    ___  \n", Red, "/ /`_ | |_   | | ", Yellow, "( (` | |_   | | ", Green, "/ /`_ / / \\ \n", Red, "\\_\\_/ |_|__  |_| ", Yellow, "_)_) |_|__  |_| ", Green, "\\_\\_/ \\_\\_/ ", Reset)
+		fmt.Println(Blue, "\n  Required args: ", Reset, "\n                    <path>  /home/username / C:\\\\  \n", "     <fileName/extention>  log \n  -> Can be multiple:       log,slip  \n  '-> (split by COMMA)\n", Purple, "\n  Optional arguments: ", Reset, "\n             <file/folder>  outfile.txt / folderName\n\n", "eg. ", Green, "getsetgo", Blue, "C:\\\\ payslip", Purple, "payslips.txt", Reset)
 		os.Exit(0)
 	}
 	race()
