@@ -279,7 +279,7 @@ func sprint() {
 func main() {
 	if len(os.Args) == 1 {
 		fmt.Println(Red, "  __    ____ _____ ", Yellow, "__   ____ _____ ", Green, "__    ___  \n", Red, "/ /`_ | |_   | | ", Yellow, "( (` | |_   | | ", Green, "/ /`_ / / \\ \n", Red, "\\_\\_/ |_|__  |_| ", Yellow, "_)_) |_|__  |_| ", Green, "\\_\\_/ \\_\\_/ ", Reset)
-		fmt.Println(Blue, "\n  Required args: ", Reset, "\n                    <path>  /home/username / C:\\\\  \n", "     <fileName/extention>  log \n  -> Can be multiple:       log,slip  \n  '-> (split by COMMA)\n", Purple, "\n  Optional arguments: ", Reset, "\n             <file/folder>  outfile.txt / folderName\n\n", "eg. ", Green, "getsetgo", Blue, "C:\\\\ payslip", Purple, "payslips.txt", Reset)
+		fmt.Println(Blue, "\n  Required args: ", Reset, "\n                    <path>  /home/username / C:\\\\  \n", "     <fileName/extention>  log \n  -> Can be multiple:       log,slip  \n  '-> (split by COMMA)\n", Purple, "\n  Optional arguments: ", Reset, "\n             <file/folder>  outfile.txt / folderName\n\n", "eg. ", Green, "getsetgo", Blue, "C:\\\\ payslip,statement", Purple, "bank_statements.txt", Reset)
 		os.Exit(0)
 	}
 	race()
