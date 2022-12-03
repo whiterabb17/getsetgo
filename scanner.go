@@ -1,4 +1,4 @@
-package main
+package getsetgo
 
 import (
 	"fmt"

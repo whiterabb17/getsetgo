@@ -1,4 +1,4 @@
-package main
+package getsetgo
 
 import (
 	"archive/zip"
@@ -19,22 +19,14 @@ import (
 const snooze time.Duration = 600
 
 var (
-	// Colors
-	Reset          = "\033[0m"
-	Red            = "\033[31m"
-	Green          = "\033[32m"
-	Yellow         = "\033[33m"
-	Blue           = "\033[34m"
-	Purple         = "\033[35m"
-	dest           string
-	ext            string
-	header         string
-	tempFolderName string
-	collection     string
-	sepr           string
-	errors         string = ""
-	cpy            bool   = false
-	fileList       bool   = false
+	dest       string
+	ext        string
+	header     string
+	collection string
+	sepr       string
+	errors     string = ""
+	cpy        bool   = false
+	fileList   bool   = false
 )
 
 func sCopy(fPath string, fName string, dPath string, wg *sync.WaitGroup) {
@@ -139,6 +131,126 @@ func tracker(start time.Time, name string) {
 	}
 }
 
+func Racer(arg1 string, arg2 string, arg3 string) {
+	defer tracker(time.Now(), "Execution")
+	if runtime.GOOS == "windows" {
+		sepr = "\\"
+	} else {
+		sepr = "/"
+	}
+	path := arg1
+	ext = arg2
+	dest = arg3
+	if strings.Contains(arg3, ".") {
+		fileList = true
+		if _, er := os.Stat(dest); !os.IsNotExist(er) {
+			os.Remove(dest)
+		}
+	} else {
+		cpy = true
+		if _, err := os.Stat(dest); os.IsNotExist(err) {
+			os.Mkdir(dest, 0775)
+		}
+	}
+	sprinter(path)
+}
+
+func sprinter(path string) {
+	wg := sync.WaitGroup{}
+	f := filescanner.Scanner{}
+	if strings.Contains(ext, ",") {
+		exts := strings.Split(ext, ",")
+		if fileList {
+			header += "Hunting \n		Extentions: " + ext + "	|		Path: " + path + "		| Total Time Elapsed: "
+		}
+		log.Println("Hunting \n		Extentions: " + ext + "	|		Path: " + path + "\n\n")
+		for _, target := range exts {
+			resStream, errStream := f.Search(path, target, &wg)
+			// Found files handling
+			go func() {
+				for {
+					foundFile := <-resStream
+					cPath := filepath.Join(foundFile.Path, foundFile.Name)
+					log.Printf("Found file: %s", cPath)
+					if fileList {
+						collection += "Path: " + cPath + "\n"
+					}
+					if foundFile.Path != dest {
+						sp := catchParent(foundFile.Path)
+						if cpy {
+							if _, err := os.Stat(sp); os.IsNotExist(err) {
+								os.Mkdir(dest+sepr+sp, 0775)
+								go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
+							}
+							if _, err := os.Stat(sp); !os.IsNotExist(err) {
+								go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
+							}
+						}
+					}
+				}
+			}()
+
+			// Errors handling
+			go func() {
+				for {
+					errorOccured := <-errStream
+					if fileList {
+						errors += fmt.Sprintf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error()) + "\n"
+					}
+					log.Printf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error())
+				}
+			}()
+		}
+	} else {
+		log.Println("Hunting Extention: " + ext + "\n\n")
+		resStream, errStream := f.Search(path, ext, &wg)
+		if fileList {
+			header += "Hunting \n		Extention: " + ext + "		| Path: " + path + "		| Total Time Elapsed: "
+		}
+		// Found files handling
+		go func() {
+			for {
+				foundFile := <-resStream
+				cPath := filepath.Join(foundFile.Path, foundFile.Name)
+				log.Printf("Found file: %s", cPath)
+				if fileList {
+					collection += "Path: " + cPath + "\n"
+				}
+				if foundFile.Path != dest {
+					sp := catchParent(foundFile.Path)
+					if cpy {
+						if _, err := os.Stat(sp); os.IsNotExist(err) {
+							os.Mkdir(dest+sepr+sp, 0775)
+							go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
+						}
+						if _, err := os.Stat(sp); !os.IsNotExist(err) {
+							go sCopy(foundFile.Path, foundFile.Name, dest+"\\"+sp, &wg)
+						}
+					}
+				}
+			}
+		}()
+
+		// Errors handling
+		go func() {
+			for {
+				errorOccured := <-errStream
+				log.Printf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error())
+				if fileList {
+					errors += fmt.Sprintf("Processing error at %s: %s", errorOccured.Path, errorOccured.Err.Error()) + "\n"
+				}
+			}
+		}()
+	}
+	// this wait group waits for FileScanner to finish searching
+	wg.Wait()
+	time.Sleep(snooze)
+	if cpy {
+		sArch(dest, dest+".zip")
+		os.RemoveAll(dest)
+	}
+}
+
 func race() string {
 	defer tracker(time.Now(), "Execution")
 	if runtime.GOOS == "windows" {
@@ -160,14 +272,8 @@ func sprint() {
 			}
 		} else {
 			cpy = true
-			if strings.Contains(dest, ".zip") {
-				tempFolderName = strings.Replace(dest, ".zip", "", 1)
-			} else {
-				tempFolderName = dest
-				dest = dest + ".zip"
-			}
-			if _, err := os.Stat(tempFolderName); os.IsNotExist(err) {
-				os.Mkdir(tempFolderName, 0775)
+			if _, err := os.Stat(dest); os.IsNotExist(err) {
+				os.Mkdir(dest, 0775)
 			}
 		}
 	}
@@ -271,16 +377,11 @@ func sprint() {
 	wg.Wait()
 	time.Sleep(snooze)
 	if cpy {
-		sArch(tempFolderName, dest)
+		sArch(dest, dest+".zip")
 		os.RemoveAll(dest)
 	}
 }
 
 func main() {
-	if len(os.Args) == 1 {
-		fmt.Println(Red, "  __    ____ _____ ", Yellow, "__   ____ _____ ", Green, "__    ___  \n", Red, "/ /`_ | |_   | | ", Yellow, "( (` | |_   | | ", Green, "/ /`_ / / \\ \n", Red, "\\_\\_/ |_|__  |_| ", Yellow, "_)_) |_|__  |_| ", Green, "\\_\\_/ \\_\\_/ ", Reset)
-		fmt.Println(Blue, "\n  Required args: ", Reset, "\n                    <path>  /home/username / C:\\\\  \n", "     <fileName/extention>  log \n  -> Can be multiple:       log,slip  \n  '-> (split by COMMA)\n", Purple, "\n  Optional arguments: ", Reset, "\n             <file/folder>  outfile.txt / folderName\n\n", "eg. ", Green, "getsetgo", Blue, "C:\\\\ payslip,statement", Purple, "bank_statements.txt", Reset)
-		os.Exit(0)
-	}
 	race()
 }
